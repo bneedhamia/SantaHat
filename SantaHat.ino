@@ -26,11 +26,11 @@
 
 /*
  * I/O Pins:
- * Indexed by a position (0..3 clockwise), contains the pin number of
- * the corresponding LED.
+ * Indexed by a position (0..NUM_LEDS - 1, clockwise), contains the pin number
+ * of the corresponding LED.
  * 
  * Change these pin numbers as necessary, depending on how your circuit
- * is wired.
+ * is wired and how many LEDs you have.
  */
 const int NUM_LEDS = 4;
 const int P[] = { 3, 4, 6, 5};
@@ -42,7 +42,7 @@ const int P[] = { 3, 4, 6, 5};
  *   (on time + off time), in microseconds. Chosen to
  *   reduce the perception that the lights are blinking quickly.
  * NUM_LED_LEVELS = number of brightness levels; number of entries in US_ON[].
- * US_ON[] = indexed by a desired brightness (0..7), contains
+ * US_ON[] = indexed by a desired brightness (0..NUM_LED_LEVELS - 1), contains
  *   the number of microseconds the LED should be on per Frame
  *   to produce that desired level of brightness.
  *   See the file brightness.ods to see how these numbers were calculated.
@@ -50,7 +50,7 @@ const int P[] = { 3, 4, 6, 5};
 const unsigned int US_PER_FRAME = 15000;
 const int NUM_LED_LEVELS = 32;
 const int US_ON[NUM_LED_LEVELS] = {
-  // Minimum brightness (off) and power consumption
+  // Minimum brightness (off) and minimum power consumption
   0,
   1,
   7,
@@ -87,16 +87,21 @@ const int US_ON[NUM_LED_LEVELS] = {
 };
 
 void setup() {
+  // Set up the LED pins
   for (int i = 0; i < NUM_LEDS; ++i) {
     pinMode(P[i], OUTPUT);
   }
 }
+
 /*
  * Fade from one set of LEDs to another.
  *   from = the LEDs that begin at full brightness and fade to darkness.
  *     bit 0 = 1 means P[0], bit 1 = 1 means P[1], etc.
+ *     For example, 0x5 says P[0] and P[2]; 0x3 = P[0] and P[1].
  *   to = the LEDs that begin dark and fade on to full brightness.
- *   mSecs = the time, in milliseconds, for the fade to take place.
+ *     Encoded in the same way as From.
+ *   mSecs = the time, in milliseconds (not microseconds), for the fade
+ *     to take place.
  */
 void fade(int from, int to, int mSecs) {
   float uSecs = (float) mSecs * 1000;
@@ -106,13 +111,13 @@ void fade(int from, int to, int mSecs) {
   
   float levelPerFrame = (float) NUM_LED_LEVELS / nFrames;
   
-  float onLevelF = (float) NUM_LED_LEVELS;
+  float onLevelF = (float) NUM_LED_LEVELS - 1;
   for (int frame = 0; frame < nFrames; ++frame) {
 
     /*
      * Convert the floating level into an integer level in our range,
      * then convert that level into a number of microseconds that
-     * the from and to LEDs are to be on in this frame.
+     * the From and To LEDs are to be on in this frame.
      */
     int onLevel = (int) (onLevelF + 0.5);
     if (onLevel < 0) {
@@ -204,6 +209,8 @@ void fade(int from, int to, int mSecs) {
  *   mSecs = time, in milliseconds, to accomplish the effect.
  * NOTE: Assumes P[0] is already on full, so that you can call
  * clockwise multiple times.
+ * 
+ * BUG: assumes 4 LEDs.
  */
 void antiClockwise(int mSecs) {
   int mSPer = (mSecs + (4 / 2)) / 4;
@@ -219,6 +226,8 @@ void antiClockwise(int mSecs) {
  *   mSecs = time, in milliseconds, to accomplish the effect.
  * NOTE: Assumes P[0] is already on full, so that you can call
  * clockwise multiple times.
+ * 
+ * BUG: assumes 4 LEDs
  */
 void clockwise(int mSecs) {
   int mSPer = (mSecs + (4 / 2)) / 4;
@@ -229,10 +238,16 @@ void clockwise(int mSecs) {
   fade(0x2, 0x1, mSPer);
 }
 
+/*
+ * Fade all LEDs on, then off.
+ * 
+ * BUG: assumes 4 LEDs
+ */
 void throb(int mSecs) {
   fade(0x0, 0xF, mSecs / 2);
   fade(0xF, 0x0, mSecs / 2);
 }
+
 void loop() {
   int i;
 
